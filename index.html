@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>黄金买卖记录</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  background:#f7f1e6;
+  color:#3b2f22;
+}
+.container{
+  max-width:760px;
+  margin:auto;
+  padding:18px;
+}
+.card{
+  background:#fffaf0;
+  border-radius:18px;
+  padding:18px;
+  margin-bottom:16px;
+  box-shadow:0 6px 18px rgba(90,60,20,.08);
+}
+h1,h2{
+  margin:0 0 14px;
+}
+h1{text-align:center;font-size:28px}
+h2{font-size:20px}
+label{
+  display:block;
+  margin-top:10px;
+  font-weight:600;
+}
+input,select{
+  width:100%;
+  padding:13px;
+  margin-top:6px;
+  border:1px solid #d8c7a3;
+  border-radius:12px;
+  font-size:16px;
+  background:#fff;
+}
+button{
+  width:100%;
+  padding:14px;
+  margin-top:14px;
+  border:none;
+  border-radius:14px;
+  font-size:16px;
+  font-weight:700;
+  cursor:pointer;
+}
+.primary{background:#b8872b;color:white}
+.sell{background:#8b5e34;color:white}
+.danger{background:#c94c4c;color:white}
+.gray{background:#ddd;color:#333}
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+.stat{
+  background:#f3e4c5;
+  border-radius:14px;
+  padding:14px;
+}
+.stat small{display:block;color:#765c35}
+.stat b{font-size:19px}
+.profit{color:#178a3b}
+.loss{color:#c0392b}
+.record{
+  border-top:1px solid #e5d6b8;
+  padding:12px 0;
+}
+.record-title{
+  display:flex;
+  justify-content:space-between;
+  font-weight:700;
+}
+.record small{
+  color:#765c35;
+}
+.hidden{display:none}
+.footer{
+  text-align:center;
+  font-size:12px;
+  color:#9b8055;
+  margin-top:20px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div id="loginBox" class="card">
+    <h1>🔐 黄金记录</h1>
+    <label>请输入密码</label>
+    <input type="password" id="passwordInput" placeholder="请输入密码">
+    <button class="primary" onclick="login()">进入</button>
+    <p style="font-size:13px;color:#8b6b3b;">预设密码：123456</p>
+  </div>
+
+  <div id="app" class="hidden">
+
+    <h1>🏆 黄金买卖记录</h1>
+
+    <div class="card">
+      <h2>📊 黄金资产总览</h2>
+
+      <label>今日金价 RM / g</label>
+      <input type="number" id="todayPrice" placeholder="例如：520" oninput="saveTodayPrice();render()">
+
+      <div class="grid" style="margin-top:14px;">
+        <div class="stat">
+          <small>目前持有</small>
+          <b id="holdingGold">0 g</b>
+        </div>
+        <div class="stat">
+          <small>平均成本</small>
+          <b id="avgCost">RM0/g</b>
+        </div>
+        <div class="stat">
+          <small>总投入成本</small>
+          <b id="totalCost">RM0</b>
+        </div>
+        <div class="stat">
+          <small>目前估值</small>
+          <b id="currentValue">RM0</b>
+        </div>
+        <div class="stat">
+          <small>已实现盈利</small>
+          <b id="realizedProfit">RM0</b>
+        </div>
+        <div class="stat">
+          <small>未实现盈利</small>
+          <b id="unrealizedProfit">RM0</b>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>➕ 买入黄金</h2>
+
+      <label>买入日期</label>
+      <input type="date" id="buyDate">
+
+      <label>重量 g</label>
+      <input type="number" id="buyWeight" placeholder="例如：10">
+
+      <label>买入价 RM / g</label>
+      <input type="number" id="buyPrice" placeholder="例如：480">
+
+      <label>手工费 / 其他费用 RM</label>
+      <input type="number" id="buyFee" placeholder="没有就填0">
+
+      <button class="primary" onclick="addBuy()">保存买入</button>
+    </div>
+
+    <div class="card">
+      <h2>➖ 卖出黄金</h2>
+
+      <label>卖出日期</label>
+      <input type="date" id="sellDate">
+
+      <label>重量 g</label>
+      <input type="number" id="sellWeight" placeholder="例如：5">
+
+      <label>卖出价 RM / g</label>
+      <input type="number" id="sellPrice" placeholder="例如：530">
+
+      <label>手续费 / 扣费 RM</label>
+      <input type="number" id="sellFee" placeholder="没有就填0">
+
+      <button class="sell" onclick="addSell()">保存卖出</button>
+    </div>
+
+    <div class="card">
+      <h2>📒 历史记录</h2>
+      <div id="records"></div>
+      <button class="danger" onclick="clearAll()">清空全部记录</button>
+      <button class="gray" onclick="logout()">锁定页面</button>
+    </div>
+
+    <div class="footer">
+      数据只保存在当前浏览器，不会上传到网络。
+    </div>
+
+  </div>
+</div>
+
+<script>
+const PASSWORD = "123456";
+
+let records = JSON.parse(localStorage.getItem("goldRecords") || "[]");
+let todayPrice = localStorage.getItem("goldTodayPrice") || "";
+
+document.getElementById("todayPrice").value = todayPrice;
+
+function login(){
+  const pw = document.getElementById("passwordInput").value;
+  if(pw === PASSWORD){
+    document.getElementById("loginBox").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    render();
+  }else{
+    alert("密码错误");
+  }
+}
+
+function logout(){
+  document.getElementById("loginBox").classList.remove("hidden");
+  document.getElementById("app").classList.add("hidden");
+  document.getElementById("passwordInput").value = "";
+}
+
+function save(){
+  localStorage.setItem("goldRecords", JSON.stringify(records));
+}
+
+function saveTodayPrice(){
+  localStorage.setItem("goldTodayPrice", document.getElementById("todayPrice").value);
+}
+
+function money(num){
+  return "RM" + Number(num || 0).toLocaleString("en-MY", {
+    minimumFractionDigits:2,
+    maximumFractionDigits:2
+  });
+}
+
+function gram(num){
+  return Number(num || 0).toFixed(2) + " g";
+}
+
+function addBuy(){
+  const date = document.getElementById("buyDate").value;
+  const weight = Number(document.getElementById("buyWeight").value);
+  const price = Number(document.getElementById("buyPrice").value);
+  const fee = Number(document.getElementById("buyFee").value || 0);
+
+  if(!date || weight <= 0 || price <= 0){
+    alert("请填写完整买入资料");
+    return;
+  }
+
+  records.push({
+    id: Date.now(),
+    type: "buy",
+    date,
+    weight,
+    price,
+    fee,
+    total: weight * price + fee
+  });
+
+  save();
+  clearBuyForm();
+  render();
+}
+
+function addSell(){
+  const date = document.getElementById("sellDate").value;
+  const weight = Number(document.getElementById("sellWeight").value);
+  const price = Number(document.getElementById("sellPrice").value);
+  const fee = Number(document.getElementById("sellFee").value || 0);
+
+  const summary = calculateSummary();
+
+  if(!date || weight <= 0 || price <= 0){
+    alert("请填写完整卖出资料");
+    return;
+  }
+
+  if(weight > summary.holding){
+    alert("卖出重量不能超过目前持有黄金重量");
+    return;
+  }
+
+  const avgCost = summary.avgCost;
+  const income = weight * price - fee;
+  const cost = weight * avgCost;
+  const profit = income - cost;
+
+  records.push({
+    id: Date.now(),
+    type: "sell",
+    date,
+    weight,
+    price,
+    fee,
+    income,
+    cost,
+    profit
+  });
+
+  save();
+  clearSellForm();
+  render();
+}
+
+function calculateSummary(){
+  let holding = 0;
+  let totalCost = 0;
+  let realizedProfit = 0;
+
+  const sorted = [...records].sort((a,b)=>new Date(a.date)-new Date(b.date));
+
+  sorted.forEach(r=>{
+    if(r.type === "buy"){
+      holding += r.weight;
+      totalCost += r.total;
+    }else{
+      const avgCost = holding > 0 ? totalCost / holding : 0;
+      const sellCost = r.weight * avgCost;
+
+      holding -= r.weight;
+      totalCost -= sellCost;
+      realizedProfit += r.profit;
+    }
+  });
+
+  return {
+    holding,
+    totalCost,
+    avgCost: holding > 0 ? totalCost / holding : 0,
+    realizedProfit
+  };
+}
+
+function render(){
+  const summary = calculateSummary();
+  const currentPrice = Number(document.getElementById("todayPrice").value || 0);
+  const currentValue = summary.holding * currentPrice;
+  const unrealizedProfit = currentValue - summary.totalCost;
+
+  document.getElementById("holdingGold").innerText = gram(summary.holding);
+  document.getElementById("avgCost").innerText = money(summary.avgCost) + "/g";
+  document.getElementById("totalCost").innerText = money(summary.totalCost);
+  document.getElementById("currentValue").innerText = money(currentValue);
+
+  document.getElementById("realizedProfit").innerText = money(summary.realizedProfit);
+  document.getElementById("realizedProfit").className = summary.realizedProfit >= 0 ? "profit" : "loss";
+
+  document.getElementById("unrealizedProfit").innerText = money(unrealizedProfit);
+  document.getElementById("unrealizedProfit").className = unrealizedProfit >= 0 ? "profit" : "loss";
+
+  const box = document.getElementById("records");
+
+  if(records.length === 0){
+    box.innerHTML = "<p>还没有任何记录。</p>";
+    return;
+  }
+
+  const html = [...records]
+    .sort((a,b)=>new Date(b.date)-new Date(a.date))
+    .map(r=>{
+      if(r.type === "buy"){
+        return `
+        <div class="record">
+          <div class="record-title">
+            <span>➕ 买入黄金</span>
+            <span>${r.date}</span>
+          </div>
+          <small>
+            重量：${gram(r.weight)}<br>
+            买入价：${money(r.price)}/g<br>
+            手工费：${money(r.fee)}<br>
+            总成本：${money(r.total)}
+          </small>
+          <button class="danger" onclick="deleteRecord(${r.id})">删除</button>
+        </div>`;
+      }else{
+        return `
+        <div class="record">
+          <div class="record-title">
+            <span>➖ 卖出黄金</span>
+            <span>${r.date}</span>
+          </div>
+          <small>
+            重量：${gram(r.weight)}<br>
+            卖出价：${money(r.price)}/g<br>
+            手续费：${money(r.fee)}<br>
+            净收入：${money(r.income)}<br>
+            估算盈利：<span class="${r.profit >= 0 ? "profit" : "loss"}">${money(r.profit)}</span>
+          </small>
+          <button class="danger" onclick="deleteRecord(${r.id})">删除</button>
+        </div>`;
+      }
+    }).join("");
+
+  box.innerHTML = html;
+}
+
+function deleteRecord(id){
+  if(confirm("确定要删除这笔记录吗？")){
+    records = records.filter(r=>r.id !== id);
+    save();
+    render();
+  }
+}
+
+function clearAll(){
+  if(confirm("确定要清空全部黄金记录吗？这个动作不能恢复。")){
+    records = [];
+    save();
+    render();
+  }
+}
+
+function clearBuyForm(){
+  document.getElementById("buyDate").value = "";
+  document.getElementById("buyWeight").value = "";
+  document.getElementById("buyPrice").value = "";
+  document.getElementById("buyFee").value = "";
+}
+
+function clearSellForm(){
+  document.getElementById("sellDate").value = "";
+  document.getElementById("sellWeight").value = "";
+  document.getElementById("sellPrice").value = "";
+  document.getElementById("sellFee").value = "";
+}
+</script>
+
+</body>
+</html>
